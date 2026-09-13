@@ -22,19 +22,26 @@ async function chat(messages, { temperature = 0.4, maxTokens = 1400, timeoutMs =
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    const body = { model: cfg.model, messages, temperature, max_tokens: maxTokens, stream: false };
+    // GLM 系思考模型：不关思考，输出全进 reasoning_content，content 为空。
+    // 这些任务（出题/评分/陪练）不需要思考链，关掉换低延迟。
+    if (/glm|bigmodel/i.test(cfg.model + ' ' + cfg.baseUrl)) body.thinking = { type: 'disabled' };
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {}),
       },
-      body: JSON.stringify({ model: cfg.model, messages, temperature, max_tokens: maxTokens, stream: false }),
+      body: JSON.stringify(body),
       signal: ctrl.signal,
     });
     if (!res.ok) return null;
     const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    return typeof text === 'string' ? text : null;
+    const msg = data?.choices?.[0]?.message;
+    const text = typeof msg?.content === 'string' && msg.content.trim()
+      ? msg.content
+      : (typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim() ? msg.reasoning_content : null);
+    return text;
   } catch (e) { return null; } finally { clearTimeout(timer); }
 }
 

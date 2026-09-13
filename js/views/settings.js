@@ -9,6 +9,21 @@ export async function render(root) {
   const apiKey = el('input', { class: 'text-input', type: 'password', value: s.llm.apiKey || '', placeholder: 'API key（本地存储，可选）' });
   const model = el('input', { class: 'text-input', value: s.llm.model || '', placeholder: 'gpt-4o-mini / qwen2.5:14b / …' });
 
+  const piBox = el('div', { class: 'btn-row' });
+  fetch('./api/pi-llm').then((r) => (r.ok ? r.json() : null)).then((d) => {
+    if (!d || !d.providers || !d.providers.length) {
+      piBox.append(el('span', { class: 'muted sm' }, '未检测到（静态部署或无 openai-completions 供应商）— 手动填即可'));
+      return;
+    }
+    for (const p of d.providers) {
+      for (const m of p.models) {
+        piBox.append(el('button', { class: 'chip', title: p.baseUrl, onclick: () => {
+          baseUrl.value = p.baseUrl; apiKey.value = p.apiKey; model.value = m.id;
+        } }, `${p.id} · ${m.id}`));
+      }
+    }
+  }).catch(() => piBox.append(el('span', { class: 'muted sm' }, '未检测到')));
+
   root.append(el('div', { class: 'page settings-page' },
     el('div', { class: 'page-head' }, el('h1', null, '设置')),
 
@@ -28,6 +43,11 @@ export async function render(root) {
           toast(ok ? '模型连接正常' : '连不上——检查 URL / key / model', ok ? 'ok' : 'warn');
         } }, '保存并测试')),
     ),
+
+    el('div', { class: 'card' },
+      el('div', { class: 'sec-label mono' }, 'pi 桥（本机 models.json）'),
+      el('p', { class: 'muted sm' }, '用 node server.mjs 启动时可直接读 pi 的供应商，点一下填入上方表单：'),
+      piBox),
 
     el('div', { class: 'card' },
       el('div', { class: 'sec-label mono' }, '数据'),

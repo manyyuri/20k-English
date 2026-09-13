@@ -1,6 +1,7 @@
 // app.js — shell + hash router
 import { el, clear, toast } from './util.js';
 import { Store } from './store.js';
+import { resetCfgCache } from './llm.js';
 
 const VIEWS = {};
 async function loadViews() {
@@ -43,8 +44,28 @@ async function render() {
   main.scrollTop = 0;
 }
 
+// pi 桥：本地 server.mjs 会暴露 ~/.pi/agent/models.json 里的 openai-completions 供应商。
+// 首次启动且未配置时，自动接入（glm 优先，flash 型号优先——drill 要低延迟）。
+async function autoPi() {
+  try {
+    const s = await Store.getSettings();
+    if (s.llm.baseUrl) return;
+    const r = await fetch('./api/pi-llm');
+    if (!r.ok) return;
+    const { providers } = await r.json();
+    if (!providers?.length) return;
+    const p = providers[0];
+    const model = p.models.find((m) => /flash/i.test(m.id))?.id || p.models[0]?.id;
+    if (!model) return;
+    s.llm = { baseUrl: p.baseUrl, apiKey: p.apiKey, model };
+    await Store.saveSettings(s); resetCfgCache();
+    toast(`已接入 pi 的 ${p.id} · ${model}`);
+  } catch (e) { /* 静态部署无此端点，安静降级 */ }
+}
+
 async function boot() {
   await loadViews();
+  await autoPi();
   const gear = document.querySelector('#gear');
   gear.addEventListener('click', () => { location.hash = '#/settings'; });
   window.addEventListener('hashchange', render);
