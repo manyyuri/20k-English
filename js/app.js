@@ -1,6 +1,7 @@
 // app.js — shell + hash router
 import { el, clear } from './util.js';
 import { reconcilePi } from './pi.js';
+import { checkInbox } from './inbox.js';
 
 const VIEWS = {};
 async function loadViews() {
@@ -50,6 +51,7 @@ async function boot() {
   gear.addEventListener('click', () => { location.hash = '#/settings'; });
   window.addEventListener('hashchange', render);
   await render();
+  checkInbox();  // 收割收件箱：agent 在终端收的语块，app 打开时一键入库
   // service worker
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     try { await navigator.serviceWorker.register('./sw.js'); } catch (e) {}

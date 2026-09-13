@@ -389,3 +389,15 @@ textarea { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   .toast-btn, .health-dot, .model-switch summary { transition: none; }
 }
+
+/* ---------- 收割收件箱 ---------- */
+.inbox-list { display: flex; flex-direction: column; }
+.inbox-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 6px; border-bottom: 1px solid var(--line, #e5e2da);
+  cursor: pointer; opacity: 0.45; transition: opacity 0.15s;
+}
+.inbox-row.on { opacity: 1; }
+.inbox-row input { margin-top: 4px; accent-color: var(--graph, #2E5E8C); }
+.inbox-main { flex: 1; min-width: 0; }
+.inbox-sheet .btn-row { margin-top: 14px; }

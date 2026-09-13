@@ -2,7 +2,7 @@
 // 用法：node server.mjs [port]   （默认 8787，只绑 127.0.0.1）
 // key 只在内存里过一手，不落仓库；浏览器侧同源才能取到。
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, unlink } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -56,6 +56,19 @@ createServer(async (req, res) => {
     if (!data) { res.writeHead(502, { 'Content-Type': 'application/json' }); res.end('{"error":"cannot read ~/.pi/agent/models.json"}'); return; }
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(data));
+    return;
+  }
+  // 收件箱：agent 在终端收割的语块 → app 打开后一键入库（DELETE 清空）
+  if (url.pathname === '/api/inbox') {
+    if (req.method === 'GET') {
+      let text = '{"chunks":[]}';
+      try { text = await readFile(join(ROOT, 'inbox.json'), 'utf8'); } catch { }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(text);
+    } else if (req.method === 'DELETE') {
+      try { await unlink(join(ROOT, 'inbox.json')); } catch { }
+      res.writeHead(204); res.end();
+    } else { res.writeHead(405); res.end(); }
     return;
   }
   // 静态：目录 → index.html；防穿越
