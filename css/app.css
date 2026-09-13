@@ -354,3 +354,6 @@ textarea { resize: vertical; }
   .cbar { transition: none; }
   * { transition-duration: .01ms !important; }
 }
+
+/* ---------- 设置：pi 桥选择器 ---------- */
+.pi-pickers { display: flex; flex-direction: column; gap: 6px; }

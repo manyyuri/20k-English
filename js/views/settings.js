@@ -1,53 +1,69 @@
-// settings.js — LLM 端点（自带 key）、数据（bank.json 双向）、清空。
+// settings.js — 模型从 pi 桥一键切换（无手动表单）、数据（bank.json 双向）、清空。
 import { el, toast, download } from '../util.js';
 import { Store } from '../store.js';
 import { testConnection, resetCfgCache } from '../llm.js';
 
 export async function render(root) {
   const s = await Store.getSettings();
-  const baseUrl = el('input', { class: 'text-input', type: 'url', value: s.llm.baseUrl || '', placeholder: 'https://api.openai.com/v1 或 http://localhost:11434/v1' });
-  const apiKey = el('input', { class: 'text-input', type: 'password', value: s.llm.apiKey || '', placeholder: 'API key（本地存储，可选）' });
-  const model = el('input', { class: 'text-input', value: s.llm.model || '', placeholder: 'gpt-4o-mini / qwen2.5:14b / …' });
 
-  const piBox = el('div', { class: 'btn-row' });
+  // ---------- 模型：pi 桥驱动，点一下即存 ----------
+  const statusLine = el('div', { class: 'mono sm' });
+  const testBtn = el('button', { class: 'btn btn-ghost btn-sm', onclick: async (e) => {
+    if (!s.llm.baseUrl) { toast('先选一个模型', 'warn'); return; }
+    const btn = e.currentTarget; btn.textContent = '测试中…';
+    const ok = await testConnection();
+    btn.textContent = '测试连接';
+    toast(ok ? '连接正常' : '连不上——看终端日志或换个型号', ok ? 'ok' : 'warn');
+  } }, '测试连接');
+
+  function refreshStatus() {
+    statusLine.textContent = s.llm.baseUrl
+      ? `当前：${s.llm.model} @ ${host(s.llm.baseUrl)}`
+      : '未配置（收割/评分/陪练不可用，drill 自评模式照常）';
+  }
+  function host(u) { try { return new URL(u).host; } catch { return u; } }
+  refreshStatus();
+
+  const piBox = el('div', { class: 'pi-pickers' }, el('div', { class: 'mono sm skeleton-inline' }, '读取 pi 配置…'));
   fetch('./api/pi-llm').then((r) => (r.ok ? r.json() : null)).then((d) => {
-    if (!d || !d.providers || !d.providers.length) {
-      piBox.append(el('span', { class: 'muted sm' }, '未检测到（静态部署或无 openai-completions 供应商）— 手动填即可'));
+    piBox.textContent = '';
+    const providers = (d && d.providers) || [];
+    if (!providers.length) {
+      piBox.append(el('div', { class: 'notice' },
+        el('span', null, '没读到 pi 配置——需要用 node server.mjs 启动（读取 ~/.pi/agent/models.json）。')));
       return;
     }
-    for (const p of d.providers) {
-      for (const m of p.models) {
-        piBox.append(el('button', { class: 'chip', title: p.baseUrl, onclick: () => {
-          baseUrl.value = p.baseUrl; apiKey.value = p.apiKey; model.value = m.id;
-        } }, `${p.id} · ${m.id}`));
-      }
+    for (const p of providers) {
+      piBox.append(el('div', { class: 'sec-label mono' }, p.id));
+      piBox.append(el('div', { class: 'chip-row' }, p.models.map((m) =>
+        el('button', {
+          class: 'chip' + (s.llm.baseUrl === p.baseUrl && s.llm.model === m.id ? ' on' : ''),
+          title: p.baseUrl,
+          onclick: async (e) => {
+            s.llm = { baseUrl: p.baseUrl, apiKey: p.apiKey, model: m.id };
+            await Store.saveSettings(s); resetCfgCache();
+            piBox.querySelectorAll('.chip').forEach((c) => c.classList.remove('on'));
+            e.currentTarget.classList.add('on');
+            refreshStatus();
+            toast(`已切换：${p.id} · ${m.id}`);
+          },
+        }, m.id))));
     }
-  }).catch(() => piBox.append(el('span', { class: 'muted sm' }, '未检测到')));
+  }).catch(() => {
+    piBox.textContent = '';
+    piBox.append(el('div', { class: 'notice' }, el('span', null, 'pi 桥不可用（静态部署）——用 node server.mjs 启动即可。')));
+  });
 
   root.append(el('div', { class: 'page settings-page' },
     el('div', { class: 'page-head' }, el('h1', null, '设置')),
 
     el('div', { class: 'card' },
-      el('div', { class: 'sec-label mono' }, '模型（OpenAI 兼容）'),
-      el('p', { class: 'muted sm' }, '排期全部本地计算；模型只负责语言判断（出题、评分、陪练、审稿）。key 只存在本地。'),
-      el('label', { class: 'field' }, el('span', { class: 'field-label' }, 'Base URL'), baseUrl),
-      el('label', { class: 'field' }, el('span', { class: 'field-label' }, 'API Key'), apiKey),
-      el('label', { class: 'field' }, el('span', { class: 'field-label' }, 'Model'), model),
-      el('div', { class: 'btn-row' },
-        el('button', { class: 'btn btn-primary btn-sm', onclick: async (e) => {
-          s.llm = { baseUrl: baseUrl.value.trim(), apiKey: apiKey.value.trim(), model: model.value.trim() };
-          await Store.saveSettings(s); resetCfgCache();
-          const btn = e.currentTarget; btn.textContent = '测试中…';
-          const ok = await testConnection();
-          btn.textContent = '保存并测试';
-          toast(ok ? '模型连接正常' : '连不上——检查 URL / key / model', ok ? 'ok' : 'warn');
-        } }, '保存并测试')),
+      el('div', { class: 'sec-label mono' }, '模型'),
+      el('p', { class: 'muted sm' }, '来自本机 pi 的 models.json，点一下即切换。排期仍全部本地计算，key 只存本地。'),
+      statusLine,
+      piBox,
+      el('div', { class: 'btn-row' }, testBtn),
     ),
-
-    el('div', { class: 'card' },
-      el('div', { class: 'sec-label mono' }, 'pi 桥（本机 models.json）'),
-      el('p', { class: 'muted sm' }, '用 node server.mjs 启动时可直接读 pi 的供应商，点一下填入上方表单：'),
-      piBox),
 
     el('div', { class: 'card' },
       el('div', { class: 'sec-label mono' }, '数据'),
