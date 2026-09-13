@@ -1,5 +1,5 @@
 // paraphrase.js — 一句三说：casual / neutral / precise。先说完三版再点评；沉默词唤醒是激活最快的一刀。
-import { el, todayISO, toast } from '../util.js';
+import { el, todayISO, toast, reasonCN } from '../util.js';
 import { Store } from '../store.js';
 import { llmConfigured, paraphraseReview } from '../llm.js';
 
@@ -48,12 +48,15 @@ export async function render(root) {
     }
     result.textContent = '';
     result.append(el('div', { class: 'mono muted skeleton-inline' }, '点评中…'));
-    const r = llmConfigured()
+    const rr = llmConfigured()
       ? await paraphraseReview({ sentence, v1: v1.value, v2: v2.value, v3: v3.value })
       : null;
+    const r = rr && rr.ok ? rr.data : null;
     result.textContent = '';
     let scores = { flexibility: null, precision: null, idiomaticity: null };
-    if (r) {
+    if (!r) {
+      result.append(el('div', { class: 'notice' }, rr ? `模型没接上（${reasonCN(rr.reason)}）——稍后再试。` : '模型未接入——需要 node server.mjs 启动。'));
+    } else {
       for (const [k, label] of [['v1', 'V1 casual'], ['v2', 'V2 neutral'], ['v3', 'V3 precise']]) {
         const it = r[k];
         if (!it) continue;
@@ -69,8 +72,6 @@ export async function render(root) {
           el('div', { class: 'muted sm' }, '你明明认识但没调用的词——反复出现（≥2 次）就该入库。')));
       }
       if (r.scores) scores = r.scores;
-    } else {
-      result.append(el('div', { class: 'notice' }, '模型不可用 — 自查三件事：搭配对不对 / 语域匹配吗 / V3 有没有用最精确的词。'));
     }
     // 二次产出
     const second = el('textarea', { class: 'text-area lang', rows: 2, placeholder: '换一个情境，把 V3 的精华词重新组装再说一遍…' });

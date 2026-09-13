@@ -4,6 +4,7 @@ import { el, clear, todayISO, fmtDur, toast, createRecognizer } from '../util.js
 import { Store } from '../store.js';
 import { dueList, gradeOne, stats } from '../srs.js';
 import { llmConfigured, genSituation, gradeProduction } from '../llm.js';
+import { reasonCN } from '../util.js';
 
 const TIMEBOX = 15 * 60 * 1000; // 到点就停
 const MAX_CARDS = 10;
@@ -105,7 +106,7 @@ export async function render(root) {
       situationBox.classList.add('skeleton');
       genSituation(chunk).then((r) => {
         situationBox.classList.remove('skeleton');
-        if (r && r.situation) situationBox.textContent = r.situation;
+        if (r.ok && r.data.situation) situationBox.textContent = r.data.situation;
         else situationBox.textContent = fallbackSituation(chunk);
       });
       promptBox.append(el('div', { class: 'q-target' }, '⌁ ', el('span', { class: 'lang target-chunk' }, chunk.chunk)));
@@ -178,13 +179,14 @@ export async function render(root) {
       // LLM 判分建议（异步，不阻塞按钮）
       const advice = el('div', { class: 'llm-advice mono sm skeleton-inline' }, '评分中…');
       revealBox.append(advice);
-      let suggestion = null;
+      let suggestion = null; let failReason = null;
       if (llmConfigured()) {
-        suggestion = await gradeProduction({
+        const r = await gradeProduction({
           chunk, qtype, answer,
           situation: situationBox.textContent || '',
           prompt: qtype === 'B' ? maskChunk(chunk.chunk).masked : chunk.gloss,
         });
+        if (r.ok) suggestion = r.data; else failReason = r.reason;
       }
       advice.classList.remove('skeleton-inline');
       if (suggestion) {
@@ -193,7 +195,7 @@ export async function render(root) {
           suggestion.feedback ? el('div', { class: 'muted' }, suggestion.feedback) : null,
           suggestion.better ? el('div', { class: 'lang better-line' }, '母语者：', el('em', null, suggestion.better)) : null);
       } else {
-        advice.textContent = llmConfigured() ? '模型评分失败 — 自评' : '自评模式';
+        advice.textContent = failReason ? `模型评分失败（${reasonCN(failReason)}）— 自评` : '自评模式';
       }
       // 评分按钮
       const gradeBox = el('div', { class: 'grade-grid' });
@@ -257,7 +259,7 @@ export async function render(root) {
       ));
       genSituation(chunk).then((r) => {
         hint.classList.remove('skeleton');
-        hint.textContent = r && r.situation ? r.situation : fallbackSituation(chunk, true);
+        hint.textContent = r.ok && r.data.situation ? r.data.situation : fallbackSituation(chunk, true);
       });
     }
   }

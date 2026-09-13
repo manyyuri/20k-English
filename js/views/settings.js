@@ -1,69 +1,97 @@
-// settings.js — 模型从 pi 桥一键切换（无手动表单）、数据（bank.json 双向）、清空。
-import { el, toast, download } from '../util.js';
+// settings.js — 模型=运行时状态（探活心跳 + 切换型号），数据（bank.json 双向），清空。
+// 手动配置已移除：桥（~/.pi/agent/models.json 经 server.mjs）是唯一配置来源。
+import { el, toast, download, reasonCN } from '../util.js';
 import { Store } from '../store.js';
-import { testConnection, resetCfgCache } from '../llm.js';
+import { resetCfgCache, probe } from '../llm.js';
+import { reconcilePi } from '../pi.js';
 
 export async function render(root) {
   const s = await Store.getSettings();
 
-  // ---------- 模型：pi 桥驱动，点一下即存 ----------
-  const statusLine = el('div', { class: 'mono sm' });
-  const testBtn = el('button', { class: 'btn btn-ghost btn-sm', onclick: async (e) => {
-    if (!s.llm.baseUrl) { toast('先选一个模型', 'warn'); return; }
-    const btn = e.currentTarget; btn.textContent = '测试中…';
-    const ok = await testConnection();
-    btn.textContent = '测试连接';
-    toast(ok ? '连接正常' : '连不上——看终端日志或换个型号', ok ? 'ok' : 'warn');
-  } }, '测试连接');
+  // ---------- 模型：状态 + 诊断 + 折叠切换 ----------
+  const healthLine = el('div', { class: 'health-line mono sm' });
+  const healthDot = el('span', { class: 'health-dot' });
+  const probeBtn = el('button', { class: 'btn btn-ghost btn-sm', onclick: async (e) => {
+    const btn = e.currentTarget; btn.textContent = '探活中…';
+    const h = await probe();
+    btn.textContent = '重新探活';
+    const st = await Store.getSettings();
+    st.llmHealth = { ok: h.ok, ms: h.ms ?? null, reason: h.reason || null, at: new Date().toISOString() };
+    await Store.saveSettings(st);
+    drawHealth(st);
+    if (!h.ok) toast(`探活失败（${reasonCN(h.reason)}）`, 'warn', { label: '重连桥', onclick: () => reconcilePi() });
+  } }, '重新探活');
 
-  function refreshStatus() {
-    statusLine.textContent = s.llm.baseUrl
-      ? `当前：${s.llm.model} @ ${host(s.llm.baseUrl)}`
-      : '未配置（收割/评分/陪练不可用，drill 自评模式照常）';
+  function relTime(at) {
+    if (!at) return '从未';
+    const sec = Math.round((Date.now() - new Date(at).getTime()) / 1000);
+    if (sec < 60) return '刚刚';
+    if (sec < 3600) return `${Math.round(sec / 60)} 分钟前`;
+    if (sec < 86400) return `${Math.round(sec / 3600)} 小时前`;
+    return `${Math.round(sec / 86400)} 天前`;
   }
-  function host(u) { try { return new URL(u).host; } catch { return u; } }
-  refreshStatus();
-
-  const piBox = el('div', { class: 'pi-pickers' }, el('div', { class: 'mono sm skeleton-inline' }, '读取 pi 配置…'));
-  fetch('./api/pi-llm').then((r) => (r.ok ? r.json() : null)).then((d) => {
-    piBox.textContent = '';
-    const providers = (d && d.providers) || [];
-    if (!providers.length) {
-      piBox.append(el('div', { class: 'notice' },
-        el('span', null, '没读到 pi 配置——需要用 node server.mjs 启动（读取 ~/.pi/agent/models.json）。')));
+  function drawHealth(st) {
+    const h = st.llmHealth;
+    healthDot.className = 'health-dot' + (h ? (h.ok ? ' ok' : ' bad') : '');
+    healthLine.textContent = '';
+    if (!st.llm.baseUrl) {
+      healthLine.append('未接入');
       return;
     }
-    for (const p of providers) {
-      piBox.append(el('div', { class: 'sec-label mono' }, p.id));
-      piBox.append(el('div', { class: 'chip-row' }, p.models.map((m) =>
-        el('button', {
-          class: 'chip' + (s.llm.baseUrl === p.baseUrl && s.llm.model === m.id ? ' on' : ''),
-          title: p.baseUrl,
-          onclick: async (e) => {
-            s.llm = { baseUrl: p.baseUrl, apiKey: p.apiKey, model: m.id };
-            await Store.saveSettings(s); resetCfgCache();
-            piBox.querySelectorAll('.chip').forEach((c) => c.classList.remove('on'));
-            e.currentTarget.classList.add('on');
-            refreshStatus();
-            toast(`已切换：${p.id} · ${m.id}`);
-          },
-        }, m.id))));
+    const host = (() => { try { return new URL(st.llm.baseUrl).host; } catch { return st.llm.baseUrl; } })();
+    healthLine.append(
+      h ? (h.ok ? `活 · ${h.ms}ms` : `挂（${reasonCN(h.reason)}）`) : '未探活',
+      ` · ${st.llm.model} @ ${host} · ${relTime(h?.at)} 探活`);
+  }
+  drawHealth(s);
+
+  const modelCard = el('div', { class: 'card' },
+    el('div', { class: 'sec-label mono' }, '模型'),
+    el('p', { class: 'muted sm' }, '来自本机 pi 的 models.json。排期全部本地计算，key 只存本地。'),
+    el('div', { class: 'health-row' }, healthDot, healthLine),
+    el('div', { class: 'btn-row' }, probeBtn),
+    el('div', { class: 'switcher' }),
+  );
+  const switcher = modelCard.querySelector('.switcher');
+
+  fetch('./api/pi-llm').then((r) => (r.ok ? r.json() : null)).then((d) => {
+    const providers = (d && d.providers) || [];
+    if (!providers.length) {
+      switcher.append(el('div', { class: 'notice' },
+        el('span', null, '模型桥不可读——需要用 node server.mjs 启动（读取 ~/.pi/agent/models.json）。'),
+        el('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
+          await reconcilePi();
+          const st = await Store.getSettings(); drawHealth(st);
+          toast(st.piBridge === 'ok' ? '桥已接上' : '桥还是不可读', st.piBridge === 'ok' ? 'ok' : 'warn');
+        } }, '重试桥')));
+      return;
     }
-  }).catch(() => {
-    piBox.textContent = '';
-    piBox.append(el('div', { class: 'notice' }, el('span', null, 'pi 桥不可用（静态部署）——用 node server.mjs 启动即可。')));
-  });
+    const n = providers.reduce((m, p) => m + p.models.length, 0);
+    const det = el('details', { class: 'model-switch' },
+      el('summary', null, `切换型号（${n} 个可选）`),
+      el('div', { class: 'pi-pickers' }, providers.map((p) => [
+        el('div', { class: 'sec-label mono' }, p.id),
+        el('div', { class: 'chip-row' }, p.models.map((m) =>
+          el('button', {
+            class: 'chip' + (s.llm.baseUrl === p.baseUrl && s.llm.model === m.id ? ' on' : ''),
+            title: p.baseUrl,
+            onclick: async (e) => {
+              s.llm = { baseUrl: p.baseUrl, apiKey: p.apiKey, model: m.id };
+              await Store.saveSettings(s); resetCfgCache();
+              det.querySelectorAll('.chip').forEach((c) => c.classList.remove('on'));
+              e.currentTarget.classList.add('on');
+              drawHealth({ ...s, llmHealth: null });
+              toast(`已切换：${p.id} · ${m.id}`);
+              probeBtn.click();  // 切完即探活，状态行马上有真相
+            },
+          }, m.id))),
+      ])));
+    switcher.append(det);
+  }).catch(() => switcher.append(el('div', { class: 'muted sm' }, '桥不可用（静态部署）——用 node server.mjs 启动即可。')));
 
   root.append(el('div', { class: 'page settings-page' },
     el('div', { class: 'page-head' }, el('h1', null, '设置')),
-
-    el('div', { class: 'card' },
-      el('div', { class: 'sec-label mono' }, '模型'),
-      el('p', { class: 'muted sm' }, '来自本机 pi 的 models.json，点一下即切换。排期仍全部本地计算，key 只存本地。'),
-      statusLine,
-      piBox,
-      el('div', { class: 'btn-row' }, testBtn),
-    ),
+    modelCard,
 
     el('div', { class: 'card' },
       el('div', { class: 'sec-label mono' }, '数据'),

@@ -4,6 +4,8 @@ import { el, clear, sheet, todayISO, weekStart, toast } from '../util.js';
 import { Store } from '../store.js';
 import { addChunk } from '../srs.js';
 import { llmConfigured, harvestCandidates, checkMyExample } from '../llm.js';
+import { reasonCN } from '../util.js';
+import { failAction } from '../pi.js';
 
 const TYPES = [['collocation', '搭配'], ['phrasal', '短语动词'], ['idiom', '习语'], ['frame', '句式'], ['single', '精确词']];
 
@@ -46,11 +48,16 @@ export async function render(root, params) {
     resultBox.append(el('div', { class: 'mono muted skeleton-inline' }, '标记中…'));
     const r = await harvestCandidates(text, srcInput.value.trim());
     clear(resultBox);
-    if (!r || !Array.isArray(r.candidates) || !r.candidates.length) {
-      resultBox.append(el('div', { class: 'notice' }, '模型没有返回候选——检查设置，或用手动入库。'));
+    if (!r.ok) {
+      toast(`模型没接上（${reasonCN(r.reason)}）`, 'warn', failAction(r.reason, doHarvest));
+      resultBox.append(el('div', { class: 'notice' }, `模型没接上（${reasonCN(r.reason)}）——或用手动入库。`));
       return;
     }
-    const list = r.candidates.slice(0, 12);
+    const list = (Array.isArray(r.data.candidates) ? r.data.candidates : []).slice(0, 12);
+    if (!list.length) {
+      resultBox.append(el('div', { class: 'notice' }, '模型没有返回候选——换个段落再试，或用手动入库。'));
+      return;
+    }
     resultBox.append(el('div', { class: 'sec-label mono' }, `${list.length} 个候选 · 逐个确认`));
     for (const cand of list) resultBox.append(candidateCard(cand, srcInput.value.trim()));
   }
@@ -86,7 +93,8 @@ export async function render(root, params) {
             warn.textContent = '检查中…';
             const r = await checkMyExample({ chunk: cand.chunk, gloss: cand.gloss, register: cand.register }, v);
             warn.textContent = '';
-            if (r && r.ok === false && Array.isArray(r.issues) && r.issues.length) {
+            const chk = r.ok ? r.data : null;
+            if (chk && chk.ok === false && Array.isArray(chk.issues) && chk.issues.length) {
               warn.append('句子有问题：', ...r.issues.map((i) => el('div', null, '· ' + i)), el('div', { class: 'muted' }, '改一下重造，再入库。'));
               return;
             }

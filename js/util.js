@@ -52,12 +52,24 @@ export function download(filename, text, type = 'application/json') {
 
 // ---------- toast ----------
 let toastHost = null;
-export function toast(msg, kind = 'info') {
+export function toast(msg, kind = 'info', action = null) {
   if (!toastHost) { toastHost = el('div', { class: 'toast-host' }); document.body.append(toastHost); }
-  const t = el('div', { class: `toast ${kind}` }, msg);
+  const t = el('div', { class: `toast ${kind}` },
+    el('span', { class: 'toast-msg' }, msg),
+    action ? el('button', { class: 'toast-btn', onclick: () => { dismiss(); action.onclick(); } }, action.label) : null);
   toastHost.append(t);
-  setTimeout(() => t.classList.add('out'), 2600);
-  setTimeout(() => t.remove(), 3100);
+  const dismiss = () => { t.classList.add('out'); setTimeout(() => t.remove(), 400); };
+  setTimeout(() => dismiss(), 3200);
+}
+
+// LLM 失败原因 → 中文（http-401 → key 失效 等）
+export function reasonCN(r) {
+  if (!r) return '未知错误';
+  if (r.startsWith('http-')) {
+    const s = r.slice(5);
+    return ({ 401: 'key 失效', 403: 'key 失效', 429: '限流' })[s] || `服务端 ${s}`;
+  }
+  return ({ network: '网络不通', timeout: '超时', empty: '空响应', json: '返回异常', noconfig: '未接入' })[r] || r;
 }
 
 // ---------- bottom sheet ----------

@@ -134,8 +134,9 @@ export async function render(root) {
             let scores = null;
             if (llmConfigured()) {
               const r = await auditGradeWord({ word: it.word, gloss: it.gloss, sentence: sent.value, collocation: col.value, registerPick: reg.options[reg.selectedIndex]?.text || '' });
-              if (r) {
-                scores = { sentence: r.sentence ?? 0, collocation: r.collocation ?? 0, register: r.register ?? 0, feedback: r.feedback || '' };
+              const d = r.ok ? r.data : null;
+              if (d) {
+                scores = { sentence: d.sentence ?? 0, collocation: d.collocation ?? 0, register: d.register ?? 0, feedback: d.feedback || '' };
                 fb.append(el('div', { class: 'mono sm' }, `句 ${scores.sentence}/2 · 搭配 ${scores.collocation}/2 · 语域 ${scores.register}/2`),
                   scores.feedback ? el('div', { class: 'muted sm' }, scores.feedback) : null);
               }

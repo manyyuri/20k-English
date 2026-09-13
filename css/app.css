@@ -357,3 +357,35 @@ textarea { resize: vertical; }
 
 /* ---------- 设置：pi 桥选择器 ---------- */
 .pi-pickers { display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------- T7 模型桥交互：toast 动作 / 探活状态 / 折叠切换 ---------- */
+.toast { display: flex; align-items: center; gap: 10px; max-width: 420px; }
+.toast-msg { flex: 1; }
+.toast-btn {
+  flex: none; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid currentColor; background: none;
+  color: inherit; font: inherit; font-size: 13px; cursor: pointer;
+}
+.toast-btn:hover { background: rgba(255, 255, 255, 0.15); }
+.toast.warn .toast-btn { border-color: var(--alarm); color: var(--alarm); }
+.toast.warn .toast-btn:hover { background: rgba(194, 64, 44, 0.1); }
+
+.health-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; }
+.health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted, #9aa0a6); flex: none; }
+.health-dot.ok { background: var(--graph, #2E5E8C); }
+.health-dot.bad { background: var(--alarm, #C2402C); }
+.health-line { word-break: break-all; }
+
+.model-switch summary {
+  cursor: pointer; user-select: none; font-size: 13px; color: var(--muted, #6b7280);
+  padding: 6px 0; list-style: none;
+}
+.model-switch summary::before { content: '▸ '; }
+.model-switch[open] summary::before { content: '▾ '; }
+.model-switch summary:focus-visible { outline: 2px solid var(--graph, #2E5E8C); outline-offset: 2px; border-radius: 2px; }
+.model-switch .pi-pickers { padding-top: 6px; }
+
+.notice .btn-row, .notice button { margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .toast-btn, .health-dot, .model-switch summary { transition: none; }
+}

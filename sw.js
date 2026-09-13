@@ -1,5 +1,5 @@
 // sw.js — PWA 壳缓存；API/字体请求直通。手动版本号管理（改了文件就 +1）。
-const CACHE = 'en20k-v1';
+const CACHE = 'en20k-v2';
 const SHELL = [
   './',
   './index.html',

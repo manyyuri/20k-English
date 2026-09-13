@@ -3,6 +3,8 @@
 import { el, clear, todayISO, toast, createRecognizer, analyzeText } from '../util.js';
 import { Store } from '../store.js';
 import { llmConfigured, speakingReply, totCandidates } from '../llm.js';
+import { reasonCN } from '../util.js';
+import { failAction } from '../pi.js';
 import { addChunk } from '../srs.js';
 
 const SCENARIOS = [
@@ -98,9 +100,13 @@ export async function render(root) {
       msgs.append(thinking); msgs.scrollTop = msgs.scrollHeight;
       const reply = await speakingReply(history, scenario.persona, stubborn);
       thinking.remove();
-      if (!reply) { bubble('them', '(模型没有回应——检查配置后重试。你也可以点「结束」直接复盘。)'); return; }
-      history.push({ role: 'assistant', content: reply });
-      bubble('them', reply);
+      if (!reply.ok) {
+        toast(`陪练掉线（${reasonCN(reply.reason)}）`, 'warn', failAction(reply.reason));
+        bubble('them', '(模型没有回应——重试一句，或点「结束」直接复盘。)');
+        return;
+      }
+      history.push({ role: 'assistant', content: reply.text });
+      bubble('them', reply.text);
     }
     sendBtn.addEventListener('click', () => send());
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); });
@@ -121,7 +127,8 @@ export async function render(root) {
 
     // 开场白
     const opener = await speakingReply([{ role: 'user', content: '(开始吧，你先开场。)' }], scenario.persona, stubborn);
-    if (opener) { history.push({ role: 'assistant', content: opener }); bubble('them', opener); }
+    if (opener.ok) { history.push({ role: 'assistant', content: opener.text }); bubble('them', opener.text); }
+    else if (opener.reason !== 'noconfig') toast(`陪练掉线（${reasonCN(opener.reason)}）`, 'warn', failAction(opener.reason));
 
     function logTot() {
       const ta = el('textarea', { class: 'answer-input lang', rows: 2, placeholder: '你想说什么？（中文也行）' });
@@ -153,7 +160,7 @@ export async function render(root) {
         card.append(box);
         totCandidates(t.wanted).then((r) => {
           box.remove();
-          const cands = (r && r.candidates) || [];
+          const cands = (r.ok && Array.isArray(r.data.candidates) && r.data.candidates) || [];
           if (!cands.length) {
             card.append(el('div', { class: 'muted sm' }, '模型没给出候选——自己写一个：'));
           } else {

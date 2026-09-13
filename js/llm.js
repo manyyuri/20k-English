@@ -1,6 +1,7 @@
 // llm.js — LLM 边缘：情境生成、开放评分、失败诊断、陪练、审稿。
 // 排期是算法的事（srs.js）；语言判断是模型的事（这里）。
-// 未配置或失败 → 返回 null，调用方降级为自评/模板。
+// 统一返回 { ok:true, ...payload } | { ok:false, reason } —— 调用方降级时带上原因与动作。
+// reason ∈ noconfig | network | timeout | http-<n> | empty | json
 import { Store } from './store.js';
 
 let cfgCache = null;
@@ -16,7 +17,7 @@ export function llmConfigured(cfg) {
 
 async function chat(messages, { temperature = 0.4, maxTokens = 1400, timeoutMs = 45000 } = {}) {
   const cfg = await llmConfig();
-  if (!llmConfigured(cfg)) return null;
+  if (!llmConfigured(cfg)) return { ok: false, reason: 'noconfig' };
   let url = cfg.baseUrl.trim().replace(/\/+$/, '');
   if (!/\/chat\/completions$/.test(url)) url += '/chat/completions';
   const ctrl = new AbortController();
@@ -35,14 +36,17 @@ async function chat(messages, { temperature = 0.4, maxTokens = 1400, timeoutMs =
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { ok: false, reason: 'http-' + res.status };
     const data = await res.json();
     const msg = data?.choices?.[0]?.message;
     const text = typeof msg?.content === 'string' && msg.content.trim()
       ? msg.content
       : (typeof msg?.reasoning_content === 'string' && msg.reasoning_content.trim() ? msg.reasoning_content : null);
-    return text;
-  } catch (e) { return null; } finally { clearTimeout(timer); }
+    if (!text) return { ok: false, reason: 'empty' };
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, reason: e?.name === 'AbortError' ? 'timeout' : 'network' };
+  } finally { clearTimeout(timer); }
 }
 
 function extractJSON(text) {
@@ -59,16 +63,29 @@ function extractJSON(text) {
 }
 
 async function chatJSON(system, user, opts) {
-  const text = await chat([
+  const r = await chat([
     { role: 'system', content: system + '\n只输出一个合法 JSON 对象，不要输出任何其他文字。' },
     { role: 'user', content: user },
   ], { temperature: 0.2, ...opts });
-  return extractJSON(text);
+  if (!r.ok) return r;
+  const data = extractJSON(r.text);
+  if (!data) return { ok: false, reason: 'json' };
+  return { ok: true, data };
+}
+
+// 探活：极小请求测连通与延迟，结果存模块级 lastHealth
+let lastHealth = null;
+export function getLastHealth() { return lastHealth; }
+export async function probe() {
+  const t0 = performance.now();
+  const r = await chat([{ role: 'user', content: 'Reply with exactly: ok' }], { maxTokens: 8, temperature: 0, timeoutMs: 12000 });
+  const ms = Math.round(performance.now() - t0);
+  lastHealth = r.ok ? { ok: true, ms, at: Date.now() } : { ok: false, ms, reason: r.reason, at: Date.now() };
+  return lastHealth;
 }
 
 export async function testConnection() {
-  const t = await chat([{ role: 'user', content: 'Reply with exactly: ok' }], { maxTokens: 8, temperature: 0 });
-  return t != null;
+  return (await probe()).ok;
 }
 
 // ---------------- prompts（版本化，视为产品逻辑） ----------------

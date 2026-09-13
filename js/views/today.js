@@ -1,8 +1,8 @@
 // today.js — 首页是一次排好序的训练跑道，不是 dashboard。顺序即信息：drill 永远第一、最大。
-import { el, todayISO, weekStart } from '../util.js';
+import { el, todayISO, reasonCN } from '../util.js';
 import { Store } from '../store.js';
 import { dueList, stats } from '../srs.js';
-import { llmConfig, llmConfigured } from '../llm.js';
+import { reconcilePi } from '../pi.js';
 
 const SCENARIOS = [
   { id: 'standup', title: 'Daily standup', desc: '汇报进度，被追问为什么又延期' },
@@ -15,24 +15,38 @@ const SCENARIOS = [
 ];
 
 export async function render(root) {
+  await draw(root);
+  async function draw() {
   const bank = await Store.getBank();
   const st = stats(bank.chunks);
   const dueN = dueList(bank.chunks, 999).length;
   const settings = await Store.getSettings();
-  const configured = llmConfigured(settings.llm);
+  const h = settings.llmHealth;
 
   const weekday = (new Date().getDay() + 6) % 7; // 0=Mon
   const rot = await Store.getRotation();
   const scenario = SCENARIOS[rot.scenarioIdx % SCENARIOS.length];
   const secondary = pickSecondary(weekday, scenario);
 
+  const retry = (label) => el('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
+    await reconcilePi(); await draw();  // 对账后重画，状态即新
+  } }, label);
+  const notice =
+    settings.piBridge === 'unreadable'
+      ? el('div', { class: 'notice' },
+          el('span', null, '模型桥需要 node server.mjs 启动——收割/评分/陪练不可用，drill 自评模式不受影响。'),
+          retry('重试桥'))
+      : (h && !h.ok)
+        ? el('div', { class: 'notice warn' },
+            el('span', null, `模型探活失败（${reasonCN(h.reason)}）——训练将降级自评。`),
+            retry(/401|403/.test(h.reason || '') ? '重连桥' : '重试'))
+        : null;
+
+  root.textContent = '';
   root.append(
     el('div', { class: 'page today' },
       el('div', { class: 'date-line mono' }, weekdayCN(weekday), ' · ', todayISO()),
-      !configured ? el('div', { class: 'notice' },
-        el('span', null, '未配置模型 — 收割、评分、陪练将降级为手动模式，drill 不受影响。'),
-        el('button', { class: 'btn btn-ghost btn-sm', onclick: () => location.hash = '#/settings' }, '去配置'),
-      ) : null,
+      notice,
 
       // ---- 主训练：drill ----
       st.total === 0
@@ -72,6 +86,7 @@ export async function render(root) {
         `明日到期 ${st.dueTomorrow}`),
     ),
   );
+  }
 }
 
 function pickSecondary(weekday, scenario) {

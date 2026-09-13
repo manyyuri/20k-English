@@ -45,7 +45,7 @@ export async function render(root) {
         chat.append(el('div', { class: 'msg them' }, el('div', { class: 'msg-text lang' }, text)));
         const reply = await speakingReply([{ role: 'user', content: text }],
           `你是用户的朋友，刚一起看完 ${show()}。用户在复述剧情，你听得津津有味并追问（"Wait, why did he do that?"）。一次只追问一个自然的问题。`, []);
-        chat.append(el('div', { class: 'msg user' }, el('div', { class: 'msg-text lang' }, reply || '（模型没回应）')));
+        chat.append(el('div', { class: 'msg user' }, el('div', { class: 'msg-text lang' }, reply.ok ? reply.text : '（模型没回应——再讲一段试试）')));
       } }, '讲一段'),
       chat,
       finishRow(5));

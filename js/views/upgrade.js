@@ -1,5 +1,5 @@
 // upgrade.js — 表达升级审稿：语域 → 泛词/拐杖词 → 中式表达。泛词密度是核心指标。
-import { el, todayISO, toast, analyzeText, sheet } from '../util.js';
+import { el, todayISO, toast, analyzeText, sheet, reasonCN } from '../util.js';
 import { Store } from '../store.js';
 import { addChunk } from '../srs.js';
 import { llmConfigured, upgradeReview } from '../llm.js';
@@ -34,11 +34,12 @@ export async function render(root) {
     result.textContent = '';
     result.append(el('div', { class: 'mono muted skeleton-inline' }, '审稿中…'));
     const local = analyzeText(text);
-    const r = llmConfigured() ? await upgradeReview({ text, purpose: purpose.value }) : null;
+    const rr = llmConfigured() ? await upgradeReview({ text, purpose: purpose.value }) : null;
+    const r = rr && rr.ok ? rr.data : null;
     result.textContent = '';
 
     if (!r) {
-      result.append(el('div', { class: 'notice' }, '模型不可用 — 本地泛词扫描仍有效（见上方密度）。配置模型获得完整三层审稿。'));
+      result.append(el('div', { class: 'notice' }, rr ? `模型没接上（${reasonCN(rr.reason)}）——本地泛词扫描仍有效（见上方密度）。` : '模型未接入——本地泛词扫描仍有效（见上方密度）。'));
     } else {
       if (Array.isArray(r.registerIssues) && r.registerIssues.length) {
         result.append(el('div', { class: 'card alarm-card' },
