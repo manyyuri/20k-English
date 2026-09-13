@@ -4,7 +4,7 @@
   "description": "en20k — 产出式词汇激活训练器。本地优先 PWA，bank.json 双向兼容。",
   "type": "module",
   "scripts": {
-    "start": "python3 -m http.server 8787",
+    "start": "node server.mjs",
     "test": "node --test tests/"
   },
   "private": true
