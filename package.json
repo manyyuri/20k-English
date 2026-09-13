@@ -1,0 +1,11 @@
+{
+  "name": "en20k-app",
+  "version": "1.0.0",
+  "description": "en20k — 产出式词汇激活训练器。本地优先 PWA，bank.json 双向兼容。",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8787",
+    "test": "node --test tests/"
+  },
+  "private": true
+}

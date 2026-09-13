@@ -1,0 +1,13 @@
+{
+  "name": "en20k — 产出式词汇激活",
+  "short_name": "en20k",
+  "description": "不是认识两万词，是灵活使用两万词。反识别、反囤积、到点就停。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAFAF8",
+  "theme_color": "#FAFAF8",
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

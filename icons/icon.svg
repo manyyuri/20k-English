@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="24" fill="#FAFAF8"/>
+  <rect x="4" y="4" width="120" height="120" rx="20" fill="none" stroke="#E5E7E4" stroke-width="2"/>
+  <text x="64" y="66" font-family="Spectral, Georgia, serif" font-size="44" font-weight="600" fill="#191C20" text-anchor="middle">20k</text>
+  <rect x="30" y="74" width="68" height="14" rx="3" fill="#FFE34D"/>
+  <text x="64" y="104" font-family="IBM Plex Mono, monospace" font-size="12" fill="#5A6068" text-anchor="middle">produce</text>
+</svg>
