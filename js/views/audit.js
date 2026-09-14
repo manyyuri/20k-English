@@ -144,7 +144,7 @@ export async function render(root) {
             if (!scores) {
               // 降级：自评
               const sh = sheet(el('div', null,
-                el('div', { class: 'sm' }, '模型不可用 — 自评三项（0-2）'),
+                el('div', { class: 'sm' }, '陪练离场 — 自评三项（0-2）'),
                 selfGrade((s) => { it.scores = s; sh.close(); advance(); })));
             }
             if (scores) { it.scores = scores; advance(); }

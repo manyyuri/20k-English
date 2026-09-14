@@ -36,7 +36,7 @@ export async function render(root, params) {
     el('p', { class: 'muted sm' }, '只收「认识但用不出」的语块——母语者的流利来自成千上万个预制语块，不是单词表。'),
     srcInput, textBox,
     el('div', { class: 'input-row' },
-      el('button', { class: 'btn btn-primary', onclick: doHarvest }, llmConfigured() ? '标记候选 →' : '标记候选（未配模型，将失败）→'),
+      el('button', { class: 'btn btn-primary', onclick: doHarvest }, llmConfigured() ? '标记候选 →' : '标记候选（陪练没上场，会失败）→'),
       el('button', { class: 'btn btn-ghost', onclick: () => renderManual(page) }, '手动入库')),
     weekCount, resultBox,
   );
@@ -49,13 +49,13 @@ export async function render(root, params) {
     const r = await harvestCandidates(text, srcInput.value.trim());
     clear(resultBox);
     if (!r.ok) {
-      toast(`模型没接上（${reasonCN(r.reason)}）`, 'warn', failAction(r.reason, doHarvest));
-      resultBox.append(el('div', { class: 'notice' }, `模型没接上（${reasonCN(r.reason)}）——或用手动入库。`));
+      toast(`陪练离场（${reasonCN(r.reason)}）`, 'warn', failAction(r.reason, doHarvest));
+      resultBox.append(el('div', { class: 'notice' }, `陪练离场（${reasonCN(r.reason)}）——或用手动入库。`));
       return;
     }
     const list = (Array.isArray(r.data.candidates) ? r.data.candidates : []).slice(0, 12);
     if (!list.length) {
-      resultBox.append(el('div', { class: 'notice' }, '模型没有返回候选——换个段落再试，或用手动入库。'));
+      resultBox.append(el('div', { class: 'notice' }, '陪练没给候选——换个段落再试，或用手动入库。'));
       return;
     }
     resultBox.append(el('div', { class: 'sec-label mono' }, `${list.length} 个候选 · 逐个确认`));

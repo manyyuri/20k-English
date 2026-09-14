@@ -22,8 +22,8 @@ export async function render(root) {
   if (!llmConfigured(settings.llm)) {
     root.append(el('div', { class: 'page drill-wrap' },
       el('div', { class: 'drill-done' },
-        el('h2', { class: 'lang' }, '陪练需要模型'),
-        el('p', { class: 'muted' }, '口语陪练的对手戏由模型扮演——它会打断、追问、反对。先配置一个 OpenAI 兼容端点。'),
+        el('h2', { class: 'lang' }, '对手戏需要陪练'),
+        el('p', { class: 'muted' }, '对手戏由陪练扮演——他会打断、追问、反对。用 node server.mjs 启动后自动上场。'),
         el('button', { class: 'btn btn-primary', onclick: () => location.hash = '#/settings' }, '去配置'))));
     return;
   }
@@ -102,7 +102,7 @@ export async function render(root) {
       thinking.remove();
       if (!reply.ok) {
         toast(`陪练掉线（${reasonCN(reply.reason)}）`, 'warn', failAction(reply.reason));
-        bubble('them', '(模型没有回应——重试一句，或点「结束」直接复盘。)');
+        bubble('them', '(陪练没应上——重试一句，或点「结束」直接复盘。)');
         return;
       }
       history.push({ role: 'assistant', content: reply.text });
@@ -162,7 +162,7 @@ export async function render(root) {
           box.remove();
           const cands = (r.ok && Array.isArray(r.data.candidates) && r.data.candidates) || [];
           if (!cands.length) {
-            card.append(el('div', { class: 'muted sm' }, '模型没给出候选——自己写一个：'));
+            card.append(el('div', { class: 'muted sm' }, '陪练没给候选——自己写一个：'));
           } else {
             for (const c of cands) {
               card.append(el('div', { class: 'cand-pick' },
@@ -178,7 +178,7 @@ export async function render(root) {
           const keep = el('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
             t.rewritten = rw.value.trim();
             if (!t.rewritten || !t.chosen) { toast('先选表达、重说那句', 'warn'); return; }
-            if (confirm(`把「${t.chosen}」收入语块库？`)) {
+            if (confirm(`把「${t.chosen}」招进班底？`)) {
               const bank2 = await Store.getBank();
               addChunk(bank2, { chunk: t.chosen, gloss: t.wanted, type: 'idiom', register: '口语; 来自 speaking TOT', source: 'speaking · ' + scenario.title, examples: [t.rewritten], my_example: t.rewritten });
               await Store.saveBank(bank2);
@@ -206,7 +206,7 @@ export async function render(root) {
         el('button', { class: 'btn btn-primary btn-block', onclick: async () => {
           await Store.pushLog('speaking', {
             date: todayISO(), scenario: scenario.title, tot: tots.length,
-            crutchTop3, ttr: a.ttr,
+            turns: userTexts.length, crutchTop3, ttr: a.ttr,
             tots: tots.map((t) => ({ wanted: t.wanted, chosen: t.chosen, rewritten: t.rewritten })),
           });
           toast('已记录');

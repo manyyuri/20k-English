@@ -46,7 +46,7 @@ export async function render(root) {
       el('div', { class: 'retire-line' },
         el('span', { class: 'lang retire-num' }, `${st.active}`),
         el('span', { class: 'lang retire-den' }, ` / ${st.total}`),
-        el('span', { class: 'muted sm' }, '已激活')),
+        el('span', { class: 'muted sm' }, '常驻')),
       el('div', { class: 'bar' }, el('div', { class: 'bar-fill marker-fill', style: `width:${st.total ? Math.round(st.active / st.total * 100) : 0}%` })),
       el('div', { class: 'mono sm muted' }, `平均间隔 ${st.avgIv}d — 间隔在变长，就是你变强的方式`),
     ),

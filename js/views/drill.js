@@ -21,9 +21,9 @@ export async function render(root) {
     const st = stats(bank.chunks);
     root.append(el('div', { class: 'page drill-wrap' },
       el('div', { class: 'drill-done' },
-        el('div', { class: 'eyebrow mono' }, 'DRILL'),
-        el('h2', { class: 'lang' }, '今日无到期卡。'),
-        el('p', { class: 'muted' }, `库里有 ${st.total} 个语块，${st.active} 个已激活。`),
+        el('div', { class: 'eyebrow mono' }, '台词功'),
+        el('h2', { class: 'lang' }, '今天没有到场的词。'),
+        el('p', { class: 'muted' }, `班底 ${st.total} 人，常驻 ${st.active}。`),
         el('p', { class: 'mono muted sm' }, `下一批：${nextDueHint(bank)}`),
         el('button', { class: 'btn btn-primary', onclick: () => location.hash = '#/harvest' }, '收割新语块 →'),
       )));
@@ -66,6 +66,7 @@ export async function render(root) {
     const st = stats(bank.chunks);
     const logs = await Store.getLogs();
     const week = countDrillDaysThisWeek(logs);
+    const spoken = countSpokenToday(logs);
     const counts = { 3: 0, 2: 0, 1: 0, 0: 0 };
     const stubborn = [];
     for (const c of sess.cards) { counts[c.score] = (counts[c.score] || 0) + 1; if (c.score <= 1) stubborn.push(c.chunk); }
@@ -76,13 +77,13 @@ export async function render(root) {
     });
     clear(view);
     view.append(el('div', { class: 'drill-done' },
-      el('h2', { class: 'lang big' }, `今日 ${sess.cards.length} 卡。`),
+      el('h2', { class: 'lang big' }, `今天开口 ${spoken} 句。`),
       el('div', { class: 'mono muted' },
-        `3:${counts[3]} 2:${counts[2]} 1:${counts[1]} 0:${counts[0]}`, el('br'),
-        `明日到期 ${st.dueTomorrow} · 本周 ${week}/7`),
+        `本场 ${sess.cards.length} 卡 · 3:${counts[3]} 2:${counts[2]} 1:${counts[1]} 0:${counts[0]}`, el('br'),
+        `明日上场 ${st.dueTomorrow} · 本周 ${week}/7`),
       stubborn.length ? el('p', { class: 'sm' }, '顽固：', el('span', { class: 'lang ghost-list' }, stubborn.join(' · '))) : null,
       el('p', { class: 'lang stop-line' }, '到点就停。'),
-      el('button', { class: 'btn btn-ghost', onclick: () => location.hash = '#/today' }, '回今日'),
+      el('button', { class: 'btn btn-ghost', onclick: () => location.hash = '#/today' }, '回去'),
     ));
   }
 
@@ -191,11 +192,11 @@ export async function render(root) {
       advice.classList.remove('skeleton-inline');
       if (suggestion) {
         advice.innerHTML = '';
-        advice.append(`模型建议：${suggestion.score} 分 · ${DIAG[suggestion.diagnosis] || '—'}`,
+        advice.append(`陪练点评：${suggestion.score} 分 · ${DIAG[suggestion.diagnosis] || '—'}`,
           suggestion.feedback ? el('div', { class: 'muted' }, suggestion.feedback) : null,
           suggestion.better ? el('div', { class: 'lang better-line' }, '母语者：', el('em', null, suggestion.better)) : null);
       } else {
-        advice.textContent = failReason ? `模型评分失败（${reasonCN(failReason)}）— 自评` : '自评模式';
+        advice.textContent = failReason ? `陪练离场（${reasonCN(failReason)}）— 自评` : '自评模式';
       }
       // 评分按钮
       const gradeBox = el('div', { class: 'grade-grid' });
@@ -309,10 +310,22 @@ function weekStartDate() {
   t.setDate(t.getDate() - (t.getDay() + 6) % 7);
   return t;
 }
+function countSpokenToday(logs) {
+  // 唯一被允许庆祝的数字：今天被迫开口说了几句英文（含当场二次产出 + 对戏轮次）
+  const d = todayISO();
+  let n = 0;
+  for (const l of logs.drill || []) {
+    if (l.date !== d) continue;
+    n += l.n || 0;
+    if (Array.isArray(l.cards)) n += l.cards.filter((c) => c.secondAttempt).length;
+  }
+  for (const l of logs.speaking || []) if (l.date === d) n += l.turns || 0;
+  return n;
+}
 function emptyBank() {
   return el('div', { class: 'page drill-wrap' },
     el('div', { class: 'drill-done' },
-      el('h2', { class: 'lang' }, '语块库是空的'),
-      el('p', { class: 'muted' }, '间隔复习吃的是语块库。先去收割一轮，再回来。'),
+      el('h2', { class: 'lang' }, '班底还没人'),
+      el('p', { class: 'muted' }, '台词功吃的是班底。先去收割一轮，或先体检开考。'),
       el('button', { class: 'btn btn-primary', onclick: () => location.hash = '#/harvest' }, '去收割 →')));
 }

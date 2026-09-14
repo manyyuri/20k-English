@@ -401,3 +401,11 @@ textarea { resize: vertical; }
 .inbox-row input { margin-top: 4px; accent-color: var(--graph, #2E5E8C); }
 .inbox-main { flex: 1; min-width: 0; }
 .inbox-sheet .btn-row { margin-top: 14px; }
+
+/* ---------- 班底：杀青 ---------- */
+.dot.retired { background: var(--marker, #FFE34D); box-shadow: 0 0 0 2px var(--ink, #191C20) inset; }
+.retire-badge {
+  display: inline-block; padding: 6px 12px; margin-bottom: 10px;
+  background: var(--marker, #FFE34D); color: var(--ink, #191C20);
+  font-weight: 600; border-radius: 3px; font-size: 14px;
+}

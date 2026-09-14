@@ -55,7 +55,7 @@ export async function render(root) {
     result.textContent = '';
     let scores = { flexibility: null, precision: null, idiomaticity: null };
     if (!r) {
-      result.append(el('div', { class: 'notice' }, rr ? `模型没接上（${reasonCN(rr.reason)}）——稍后再试。` : '模型未接入——需要 node server.mjs 启动。'));
+      result.append(el('div', { class: 'notice' }, rr ? `陪练离场（${reasonCN(rr.reason)}）——稍后再试。` : '陪练没上场——需要 node server.mjs 启动。'));
     } else {
       for (const [k, label] of [['v1', 'V1 casual'], ['v2', 'V2 neutral'], ['v3', 'V3 precise']]) {
         const it = r[k];

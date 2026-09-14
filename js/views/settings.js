@@ -12,15 +12,15 @@ export async function render(root) {
   const healthLine = el('div', { class: 'health-line mono sm' });
   const healthDot = el('span', { class: 'health-dot' });
   const probeBtn = el('button', { class: 'btn btn-ghost btn-sm', onclick: async (e) => {
-    const btn = e.currentTarget; btn.textContent = '探活中…';
+    const btn = e.currentTarget; btn.textContent = '点名中…';
     const h = await probe();
-    btn.textContent = '重新探活';
+    btn.textContent = '重试';
     const st = await Store.getSettings();
     st.llmHealth = { ok: h.ok, ms: h.ms ?? null, reason: h.reason || null, at: new Date().toISOString() };
     await Store.saveSettings(st);
     drawHealth(st);
-    if (!h.ok) toast(`探活失败（${reasonCN(h.reason)}）`, 'warn', { label: '重连桥', onclick: () => reconcilePi() });
-  } }, '重新探活');
+    if (!h.ok) toast(`陪练离场（${reasonCN(h.reason)}）`, 'warn', { label: '重连', onclick: () => reconcilePi() });
+  } }, '重试');
 
   function relTime(at) {
     if (!at) return '从未';
@@ -35,19 +35,19 @@ export async function render(root) {
     healthDot.className = 'health-dot' + (h ? (h.ok ? ' ok' : ' bad') : '');
     healthLine.textContent = '';
     if (!st.llm.baseUrl) {
-      healthLine.append('未接入');
+      healthLine.append('还没上场');
       return;
     }
     const host = (() => { try { return new URL(st.llm.baseUrl).host; } catch { return st.llm.baseUrl; } })();
     healthLine.append(
-      h ? (h.ok ? `活 · ${h.ms}ms` : `挂（${reasonCN(h.reason)}）`) : '未探活',
-      ` · ${st.llm.model} @ ${host} · ${relTime(h?.at)} 探活`);
+      h ? (h.ok ? `在线 · ${h.ms}ms` : `离场（${reasonCN(h.reason)}）`) : '未上场',
+      ` · ${st.llm.model} @ ${host} · ${relTime(h?.at)}点名`);
   }
   drawHealth(s);
 
   const modelCard = el('div', { class: 'card' },
-    el('div', { class: 'sec-label mono' }, '模型'),
-    el('p', { class: 'muted sm' }, '来自本机 pi 的 models.json。排期全部本地计算，key 只存本地。'),
+    el('div', { class: 'sec-label mono' }, '陪练'),
+    el('p', { class: 'muted sm' }, '陪练从本机 pi 的 models.json 里来。排期全部本地计算，钥匙只存本地。'),
     el('div', { class: 'health-row' }, healthDot, healthLine),
     el('div', { class: 'btn-row' }, probeBtn),
     el('div', { class: 'switcher' }),
@@ -58,17 +58,17 @@ export async function render(root) {
     const providers = (d && d.providers) || [];
     if (!providers.length) {
       switcher.append(el('div', { class: 'notice' },
-        el('span', null, '模型桥不可读——需要用 node server.mjs 启动（读取 ~/.pi/agent/models.json）。'),
+        el('span', null, '陪练还没上场——需要用 node server.mjs 启动（他去 ~/.pi/agent/models.json 报到）。'),
         el('button', { class: 'btn btn-ghost btn-sm', onclick: async () => {
           await reconcilePi();
           const st = await Store.getSettings(); drawHealth(st);
-          toast(st.piBridge === 'ok' ? '桥已接上' : '桥还是不可读', st.piBridge === 'ok' ? 'ok' : 'warn');
-        } }, '重试桥')));
+          toast(st.piBridge === 'ok' ? '陪练已上场' : '陪练还没来', st.piBridge === 'ok' ? 'ok' : 'warn');
+        } }, '重试')));
       return;
     }
     const n = providers.reduce((m, p) => m + p.models.length, 0);
     const det = el('details', { class: 'model-switch' },
-      el('summary', null, `切换型号（${n} 个可选）`),
+      el('summary', null, `换一位陪练（${n} 位可选）`),
       el('div', { class: 'pi-pickers' }, providers.map((p) => [
         el('div', { class: 'sec-label mono' }, p.id),
         el('div', { class: 'chip-row' }, p.models.map((m) =>
@@ -81,13 +81,13 @@ export async function render(root) {
               det.querySelectorAll('.chip').forEach((c) => c.classList.remove('on'));
               e.currentTarget.classList.add('on');
               drawHealth({ ...s, llmHealth: null });
-              toast(`已切换：${p.id} · ${m.id}`);
-              probeBtn.click();  // 切完即探活，状态行马上有真相
+              toast(`已换：${p.id} · ${m.id}`);
+              probeBtn.click();  // 换完即点名，状态行马上有真相
             },
           }, m.id))),
       ])));
     switcher.append(det);
-  }).catch(() => switcher.append(el('div', { class: 'muted sm' }, '桥不可用（静态部署）——用 node server.mjs 启动即可。')));
+  }).catch(() => switcher.append(el('div', { class: 'muted sm' }, '陪练没上场（静态部署）——用 node server.mjs 启动即可。')));
 
   root.append(el('div', { class: 'page settings-page' },
     el('div', { class: 'page-head' }, el('h1', null, '设置')),
@@ -122,7 +122,7 @@ export async function render(root) {
     el('div', { class: 'card' },
       el('div', { class: 'sec-label mono' }, '危险区'),
       el('button', { class: 'btn btn-ghost btn-sm danger', onclick: async () => {
-        if (!confirm('清空所有本地数据（语块库、日志、画像、设置）？不可恢复。')) return;
+        if (!confirm('清空所有本地数据（班底、日志、画像、设置）？不可恢复。')) return;
         if (!confirm('真的确定？先导出备份吧。')) return;
         await Store.clearAll(); resetCfgCache();
         toast('已清空');

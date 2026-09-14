@@ -39,7 +39,7 @@ export async function render(root) {
     result.textContent = '';
 
     if (!r) {
-      result.append(el('div', { class: 'notice' }, rr ? `模型没接上（${reasonCN(rr.reason)}）——本地泛词扫描仍有效（见上方密度）。` : '模型未接入——本地泛词扫描仍有效（见上方密度）。'));
+      result.append(el('div', { class: 'notice' }, rr ? `陪练离场（${reasonCN(rr.reason)}）——本地泛词扫描仍有效（见上方密度）。` : '陪练没上场——本地泛词扫描仍有效（见上方密度）。'));
     } else {
       if (Array.isArray(r.registerIssues) && r.registerIssues.length) {
         result.append(el('div', { class: 'card alarm-card' },
@@ -74,7 +74,7 @@ export async function render(root) {
           const picks = [...selected].map((i) => table[i]).filter(Boolean);
           if (!picks.length) { toast('先勾选要入库的升级对', 'warn'); return; }
           bankThem(picks);
-        } }, '把勾选的转入语块库 →'));
+        } }, '把勾选的招进班底 →'));
       }
     }
     // 记录（泛词密度 = 本系统核心指标）

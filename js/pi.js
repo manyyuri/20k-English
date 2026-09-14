@@ -41,7 +41,7 @@ export async function reconcilePi({ quiet = false } = {}) {
         const was = llmConfigured(s.llm);
         s.llm = { baseUrl: p.baseUrl, apiKey: p.apiKey, model };
         await Store.saveSettings(s); resetCfgCache();
-        if (!quiet) toast(was ? `模型配置已过期 → 已切换 ${p.id}·${model}` : `已接入 pi 的 ${p.id}·${model}`);
+        if (!quiet) toast(was ? `陪练换了新钥匙 → ${p.id}·${model}` : `陪练已上场：${p.id}·${model}`);
       }
     }
   }
@@ -58,13 +58,13 @@ export async function probeAndRecord({ quiet = false } = {}) {
   s.llmHealth = { ok: h.ok, ms: h.ms ?? null, reason: h.reason || null, at: new Date().toISOString() };
   await Store.saveSettings(s);
   if (!h.ok && !quiet) {
-    toast(`模型探活失败（${reasonCN(h.reason)}）`, 'warn', failAction(h.reason));
+    toast(`陪练离场（${reasonCN(h.reason)}）——台词功照常`, 'warn', failAction(h.reason));
   }
   return h;
 }
 
-// 失败原因 → toast 动作：鉴权类给「重连桥」（reconcile 会刷 key / 切供应商），其他场景由调用方给 retry
+// 失败原因 → toast 动作：鉴权类给「重连」（reconcile 会刷 key / 切供应商），其他场景由调用方给 retry
 export function failAction(reason, retry) {
-  if (/^http-(401|403)$/.test(reason)) return { label: '重连桥', onclick: () => reconcilePi() };
+  if (/^http-(401|403)$/.test(reason)) return { label: '重连', onclick: () => reconcilePi() };
   return retry ? { label: '重试', onclick: retry } : null;
 }

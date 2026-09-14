@@ -64,12 +64,13 @@ export function toast(msg, kind = 'info', action = null) {
 
 // LLM 失败原因 → 中文（http-401 → key 失效 等）
 export function reasonCN(r) {
-  if (!r) return '未知错误';
+  // 系统词汇红线：不出现 key/限流/服务端这类运维词。用户只需要知道陪练怎么了。
+  if (!r) return '出了点状况';
   if (r.startsWith('http-')) {
     const s = r.slice(5);
-    return ({ 401: 'key 失效', 403: 'key 失效', 429: '限流' })[s] || `服务端 ${s}`;
+    return ({ 401: '钥匙过期', 403: '钥匙过期', 429: '陪练太忙' })[s] || `陪练那边出了状况（${s}）`;
   }
-  return ({ network: '网络不通', timeout: '超时', empty: '空响应', json: '返回异常', noconfig: '未接入' })[r] || r;
+  return ({ network: '网络不通', timeout: '没应上话', empty: '没吃声', json: '回话听不懂', noconfig: '还没上场' })[r] || '出了点状况';
 }
 
 // ---------- bottom sheet ----------
