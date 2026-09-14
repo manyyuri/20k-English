@@ -16,16 +16,47 @@
   <link rel="stylesheet" href="./css/app.css">
 </head>
 <body>
-  <header class="app-header">
-    <span class="app-name lang">en20k</span>
-    <button id="gear" class="gear" aria-label="设置">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3M4 4l2.1 2.1M13.9 13.9L16 16M16 4l-2.1 2.1M6.1 13.9L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-      </svg>
-    </button>
-  </header>
-  <main id="main"></main>
+  <div class="shell">
+    <aside class="rail" aria-label="主导航">
+      <a class="brand lang" href="#/today">en20k</a>
+      <nav class="rail-nav">
+        <div class="rail-sec mono">今日排期</div>
+        <a href="#/today"><span class="rn-label">今天</span><kbd class="rn-key mono">1</kbd></a>
+        <a href="#/bank"><span class="rn-label">班底</span><kbd class="rn-key mono">2</kbd></a>
+        <a href="#/review"><span class="rn-label">复盘</span><kbd class="rn-key mono">3</kbd></a>
+        <div class="rail-sec mono">练功房</div>
+        <a href="#/drill">台词功</a>
+        <a href="#/speaking">对戏</a>
+        <a href="#/paraphrase">一句三说</a>
+        <a href="#/upgrade">表达升级</a>
+        <a href="#/immersion">看后收尾</a>
+        <div class="rail-sec mono">库房</div>
+        <a href="#/harvest">收割</a>
+        <a href="#/audit">体检</a>
+      </nav>
+      <div class="rail-foot">
+        <span class="rail-health" id="rail-health" title="陪练状态"><span class="health-dot" id="rail-dot"></span></span>
+        <button id="rail-gear" class="gear" aria-label="设置">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3M4 4l2.1 2.1M13.9 13.9L16 16M16 4l-2.1 2.1M6.1 13.9L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </aside>
+    <div class="frame">
+      <header class="app-header">
+        <span class="app-name lang">en20k</span>
+        <button id="gear" class="gear" aria-label="设置">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3M4 4l2.1 2.1M13.9 13.9L16 16M16 4l-2.1 2.1M6.1 13.9L4 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </header>
+      <main id="main"></main>
+    </div>
+  </div>
   <nav class="tabbar" aria-label="主导航">
     <a href="#/today" class="active">今天</a>
     <a href="#/bank">班底</a>

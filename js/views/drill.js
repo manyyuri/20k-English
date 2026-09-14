@@ -36,6 +36,33 @@ export async function render(root) {
   let timerId = null;
   let recognizer = null;
 
+  function exitDrill() {
+    if (sess.ended) return;
+    if (confirm('结束本次复习？已评分的卡会保留。')) finish(false);
+  }
+
+  // 桌面键盘：Esc 退出；揭晓后 1-4 评分，⏎ 采纳米建议分
+  function onKey(e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Escape') { e.preventDefault(); exitDrill(); return; }
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (!view.dataset.grading) return;
+    const byKey = { '1': 3, '2': 2, '3': 1, '4': 0 };
+    if (e.key in byKey) { e.preventDefault(); gradeByKey(byKey[e.key]); }
+    else if (e.key === 'Enter') { e.preventDefault(); gradeByKey(null); }
+  }
+  document.addEventListener('keydown', onKey);
+
+  function gradeByKey(score) {
+    const btns = [...view.querySelectorAll('.grade-btn')];
+    if (!btns.length) return;
+    const target = score == null
+      ? (view.querySelector('.grade-btn.suggested') || btns[0])
+      : btns.find((b) => +b.dataset.score === score);
+    if (target) target.click();
+  }
+
   function tick() {
     const elapsed = Date.now() - sess.start;
     const t = view.querySelector('.d-timer');
@@ -50,6 +77,7 @@ export async function render(root) {
   function cleanup() {
     clearInterval(timerId);
     if (recognizer) recognizer.stop();
+    document.removeEventListener('keydown', onKey);
   }
 
   function next() {
@@ -61,6 +89,7 @@ export async function render(root) {
   async function finish(timeout) {
     if (sess.ended) return;
     sess.ended = true;
+    delete view.dataset.grading;
     cleanup();
     await Store.saveBank(bank);
     const st = stats(bank.chunks);
@@ -97,7 +126,7 @@ export async function render(root) {
     const input = el('textarea', { class: 'answer-input lang', rows: 3, placeholder: '说出 / 写出英文…', 'aria-label': '你的英文产出' });
     const interim = el('div', { class: 'interim mono' });
     const micBtn = el('button', { class: 'mic-btn', 'aria-label': '按住说话', title: '按住说话' }, '🎤');
-    const submitBtn = el('button', { class: 'btn btn-primary' }, '揭晓');
+    const submitBtn = el('button', { class: 'btn btn-primary' }, '揭晓', el('kbd', { class: 'btn-kbd mono' }, '⏎'));
     const revealBox = el('div', { class: 'reveal-box' });
 
     // ---------- 题面 ----------
@@ -142,16 +171,22 @@ export async function render(root) {
     } else { micBtn.disabled = true; micBtn.title = '此浏览器不支持语音输入'; }
 
     submitBtn.addEventListener('click', () => reveal(false));
+    // 答题框里直接 ⏎ 揭晓（Shift+⏎ 换行）
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!input.disabled) reveal(false); }
+    });
 
     view.append(
       el('div', { class: 'd-top' },
-        el('button', { class: 'd-exit', 'aria-label': '退出', onclick: () => { if (confirm('结束本次复习？已评分的卡会保留。')) finish(false); } }, '×'),
+        el('button', { class: 'd-exit', 'aria-label': '退出（Esc）', title: '退出（Esc）', onclick: exitDrill }, '×'),
         el('span', { class: 'mono d-progress' }, `${sess.i + 1} / ${queue.length}`),
         el('span', { class: 'mono d-timer' }, '00:00'),
       ),
       el('div', { class: 'd-card' }, promptBox, situationBox,
         input, el('div', { class: 'input-row' }, micBtn, interim, submitBtn),
         revealBox),
+      el('div', { class: 'd-hints mono' },
+        el('span', null, '⏎ 揭晓'), el('span', null, '1–4 评分'), el('span', null, 'Esc 退出')),
     );
     input.focus();
 
@@ -201,17 +236,23 @@ export async function render(root) {
       // 评分按钮
       const gradeBox = el('div', { class: 'grade-grid' });
       const GRADES = [[3, '脱口而出'], [2, '有磕绊'], [1, '提示后才想起'], [0, '没想起来']];
-      for (const [score, label] of GRADES) {
+      GRADES.forEach(([score, label], gi) => {
         gradeBox.append(el('button', {
           class: 'grade-btn' + (suggestion && suggestion.score === score ? ' suggested' : ''),
+          'data-score': String(score),
           onclick: () => onGrade(score, suggestion),
-        }, el('span', { class: 'g-num lang' }, String(score)), el('span', { class: 'g-label' }, label)));
-      }
+        },
+          el('kbd', { class: 'g-key mono' }, String(gi + 1)),
+          el('span', { class: 'g-num lang' }, String(score)),
+          el('span', { class: 'g-label' }, label)));
+      });
+      view.dataset.grading = '1';
       revealBox.append(gradeBox);
       revealBox.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
 
     async function onGrade(score, suggestion) {
+      delete view.dataset.grading;
       gradeOne(chunk, score);
       await Store.saveBank(bank);
       const card = { id: chunk.id, chunk: chunk.chunk, qtype, score, diagnosis: null };
@@ -245,17 +286,26 @@ export async function render(root) {
     function renderSecond(card) {
       view.querySelectorAll('.diagnose-box').forEach((n) => n.remove());
       const hint = el('div', { class: 'situation lang skeleton' }, '…');
+      const secondInput = el('textarea', { class: 'answer-input lang second-input', rows: 2, placeholder: '用这个语块再造一句…' });
+      secondInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          const v = secondInput.value.trim();
+          card.secondAttempt = v || null;
+          next();
+        }
+      });
       revealBoxAppend(el('div', { class: 'second-box' },
         el('div', { class: 'sec-label mono' }, '当场第二次产出'),
         el('p', { class: 'muted sm' }, '换个情境，把它再说一次 —— 间隔极近的第二次产出，激活效果翻倍。'),
         hint,
-        el('textarea', { class: 'answer-input lang second-input', rows: 2, placeholder: '用这个语块再造一句…' }),
+        secondInput,
         el('div', { class: 'input-row' },
           el('button', { class: 'btn btn-primary', onclick: () => {
-            const v = view.querySelector('.second-input').value.trim();
+            const v = secondInput.value.trim();
             card.secondAttempt = v || null;
             next();
-          } }, '下一张 →'),
+          } }, '下一张 →', el('kbd', { class: 'btn-kbd mono' }, '⌘⏎')),
         ),
       ));
       genSituation(chunk).then((r) => {

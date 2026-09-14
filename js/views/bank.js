@@ -104,9 +104,10 @@ export async function render(root) {
     el('div', { class: 'page-head' },
       el('h1', null, '班底'),
       el('span', { class: 'bank-head-count mono muted' }, `${st.active} 常驻`),
+      el('button', { class: 'btn btn-ghost btn-sm head-add', onclick: () => location.hash = '#/harvest?mode=manual' }, '＋ 收割'),
     ),
     el('div', { class: 'bank-tools' },
-      el('input', { class: 'search', type: 'search', placeholder: '搜语块 / 释义 / 出处…',
+      el('input', { class: 'search', type: 'search', placeholder: '搜语块 / 释义 / 出处…（按 / 聚焦）',
         oninput: (e) => { query = e.target.value.trim(); apply(); } }),
       chipRow,
       countEl),
@@ -114,4 +115,16 @@ export async function render(root) {
     el('button', { class: 'fab', title: '招募新语块', onclick: () => location.hash = '#/harvest?mode=manual' }, '+'),
   ));
   apply();
+
+  // 桌面快捷键：/ 聚焦搜索
+  const onKey = (e) => {
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    const s = root.querySelector('.search');
+    if (s) { s.focus(); s.select(); }
+  };
+  window.addEventListener('keydown', onKey);
+  return () => window.removeEventListener('keydown', onKey);
 }

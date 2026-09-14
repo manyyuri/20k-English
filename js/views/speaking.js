@@ -71,7 +71,7 @@ export async function render(root) {
     const msgs = el('div', { class: 'chat-msgs' });
     const interim = el('div', { class: 'interim mono sm' });
     const input = el('textarea', { class: 'chat-input lang', rows: 2, placeholder: 'Your turn… (英文)' });
-    const sendBtn = el('button', { class: 'btn btn-primary' }, '说');
+    const sendBtn = el('button', { class: 'btn btn-primary', title: '⌘/Ctrl + Enter 发送' }, '发送');
     const micBtn = el('button', { class: 'mic-btn', title: '按住说话' }, '🎤');
     const recognizer = createRecognizer({
       onInterim: (t) => { interim.textContent = t; },
